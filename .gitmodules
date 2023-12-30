@@ -1,3 +1,0 @@
-[submodule "json-parser"]
-	path = json-parser
-	url = ./json-parser/
