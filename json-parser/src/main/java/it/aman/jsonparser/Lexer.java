@@ -5,9 +5,16 @@ import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
 
-import static it.aman.jsonparser.Lexer.Type.*;
-
 public class Lexer {
+
+    public static final char BEGIN_OBJECT = '{';
+    public static final char CLOSE_OBJECT = '}';
+    public static final char BEGIN_ARRAY = '[';
+    public static final char CLOSE_ARRAY = ']';
+    public static final char DOT = '.';
+    public static final char COMMA = ',';
+    public static final char QUOTE = '"';
+    public static final char COLON = ':';
 
     private final List<Token> tokenList = new ArrayList<>();
     private final LinkedList<Character> characterQueue = new LinkedList<>();
@@ -29,14 +36,14 @@ public class Lexer {
         this.removeWhitespace();
         if(this.nextToken() == null) return;
         switch (this.nextToken()) {
-            case '{':
+            case BEGIN_OBJECT:
                 parseObject();
                 break;
-            case '[':
+            case BEGIN_ARRAY:
                 parseArray();
                 break;
-            case '"':
-                readString();
+            case QUOTE:
+                parseString();
                 break;
             case '0':
             case '1':
@@ -49,7 +56,7 @@ public class Lexer {
             case '8':
             case '9':
             case '-':
-                readNumber();
+                parseNumber();
                 break;
             case 't':
                 parseTrue();
@@ -59,6 +66,9 @@ public class Lexer {
                 break;
             case 'n':
                 parseNull();
+                break;
+            case COMMA:
+                this.consumeNextToken();
                 break;
             default:
                 throw new ParseException("Parse exception at " + getErrorSection(), 0);
@@ -75,15 +85,15 @@ public class Lexer {
 
     public void parseObject() throws ParseException {
         this.consumeNextToken(); // skip opening
-        while(!isNextToken('}') && this.nextToken() != null) {
+        while(!isNextToken(CLOSE_OBJECT) && this.nextToken() != null) {
             this.parseKey();
-            if(!isNextToken(':')) {
-                throw new RuntimeException("Wrong format. Missing double colon.");
+            if(!isNextToken(COLON)) {
+                throw new RuntimeException("Wrong format. Missing colon.");
             }
             this.consumeNextToken(); // remove :
             this.parseValue();
 
-            if(!isNextToken(',') && !isNextToken('}')) {
+            if(!isNextToken(COMMA) && !isNextToken(CLOSE_OBJECT)) {
                 throw new RuntimeException("Unexpected EOF.");
             }
         }
@@ -92,8 +102,8 @@ public class Lexer {
 
     public void parseArray() throws ParseException {
         this.consumeNextToken(); // skip opening
-        while(!isNextToken(']') && this.nextToken() != null) {
-            if (isNextToken('{')) parseObject();
+        while(!isNextToken(CLOSE_ARRAY) && this.nextToken() != null) {
+            if (isNextToken(BEGIN_OBJECT)) parseObject();
             else parseValue();
         }
         this.consumeNextToken();
@@ -118,15 +128,15 @@ public class Lexer {
     }
 
     private void parseKey() throws ParseException {
-        if (isNextToken(',')) { // a comma after an object inside a parent obj
+        if (isNextToken(COMMA)) { // a comma after an object inside a parent obj
             this.removeWhitespace();
             this.consumeNextToken();
         }
         this.removeWhitespace();
-        if(this.consumeNextToken() != '"') {// skip `"`
+        if(this.consumeNextToken() != QUOTE) {// skip `"`
             throw new RuntimeException("Key parsing error");
         }
-        while (!isNextToken('"')) {
+        while (!isNextToken(QUOTE)) {
             if (this.isControlChar()) {
                 throw new RuntimeException("Wrong key value");
             }
@@ -156,15 +166,19 @@ public class Lexer {
             throw new RuntimeException(String.format("Wrong value: %s vs %s", value, compare));
     }
 
-    private void readNumber() {
-        while (this.nextToken() != null && Character.isDigit(this.nextToken())) {
+    private void parseNumber() {
+        int dotCount = 0;
+        while (this.nextToken() != null && (Character.isDigit(this.nextToken())) || (DOT == this.nextToken())) {
+            if (DOT == this.nextToken() && ++dotCount > 1){
+                throw new RuntimeException("Invalid number format.");
+            }
             this.consumeNextToken();
         }
     }
 
-    private void readString() throws ParseException {
+    private void parseString() throws ParseException {
         this.consumeNextToken(); // skip `"`
-        while (this.nextToken() != null && (this.nextToken()) != '"') {
+        while (this.nextToken() != null && (this.nextToken()) != QUOTE) {
             if (this.isControlChar()) {
                 this.consumeNextToken();
                 this.consumeNextToken();
@@ -181,7 +195,7 @@ public class Lexer {
         if (currentChar == '\\' && characterQueue.size() > 1) {
             char nextChar = characterQueue.get(1);
             switch (nextChar) {
-                case '"':
+                case QUOTE:
                 case '\'':
                 case '\\':
                 case 't':
@@ -225,19 +239,19 @@ public class Lexer {
         }
 
         public boolean isBeginObject() {
-            return BEGIN_OBJECT == t;
+            return Type.BEGIN_OBJECT == t;
         }
 
         public boolean isBeginArray() {
-            return BEGIN_ARRAY == t;
+            return Type.BEGIN_ARRAY == t;
         }
 
         public boolean isCloseObject() {
-            return CLOSE_OBJECT == t;
+            return Type.CLOSE_OBJECT == t;
         }
 
         public boolean isCloseArray() {
-            return CLOSE_ARRAY == t;
+            return Type.CLOSE_ARRAY == t;
         }
 
         @Override
