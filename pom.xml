@@ -17,6 +17,7 @@
     </developers>
     <modules>
         <module>json-parser</module>
+        <module>ccwc</module>
     </modules>
 
     <scm>
