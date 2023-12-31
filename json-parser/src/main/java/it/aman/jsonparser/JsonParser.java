@@ -12,7 +12,7 @@ public class JsonParser {
         try {
             Path path = Paths.get("json-parser/src/main/resources/tests/step4/valid3.json");
             List<String> lines = Files.readAllLines(path);
-            new Lexer(String.join("", lines)).parseObject();
+            new Lexer(String.join("", lines)).parseArray();
         } catch (Exception ignore) {
             ignore.printStackTrace();
         }
