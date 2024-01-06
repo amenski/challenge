@@ -1,17 +1,13 @@
 package it.aman;
 
 import picocli.CommandLine;
-import picocli.CommandLine.*;
+import picocli.CommandLine.Command;
+import picocli.CommandLine.Option;
+import picocli.CommandLine.Parameters;
 
-import java.nio.charset.Charset;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.NoSuchFileException;
-import java.nio.file.Paths;
-import java.util.Collections;
+import java.io.*;
 import java.util.List;
 import java.util.Scanner;
-import java.util.stream.Collectors;
 
 @Command(name = "ccwc", description = "Linux wc coding challenge")
 public class App implements Runnable {
@@ -47,6 +43,11 @@ public class App implements Runnable {
     @Parameters
     List<String> fileNames;
 
+    private long lineCount = 0;
+    private long wordCount = 0;
+    private long byteCount = 0;
+    private String currentFile = "";
+
     public App() {
     }
 
@@ -56,62 +57,81 @@ public class App implements Runnable {
 
     @Override
     public void run() {
-        if(fileNames != null && !fileNames.isEmpty()) {
-            processFiles();
-        } else {
-            Scanner scanner = new Scanner(System.in);
-            String line = scanner.nextLine();
-            System.out.println(eval(Collections.singletonList(line)));
-        }
-    }
-
-    private void processFiles() {
-        for (String file : fileNames) {
-            try {
-                System.out.println(eval(Files.readAllLines(Paths.get(file))) + " " + file);
-            } catch (NoSuchFileException e) {
-                System.err.printf("File [ %s ] not found.%n", file);
-            } catch (Exception ignore) {
-                ignore.printStackTrace();
-            }
-        }
-    }
-
-    private String eval(List<String> input) {
-        StringBuilder stringBuilder = new StringBuilder();
-        if (lines) {
-            stringBuilder.append(input.size()).append(" ");
-        }
-        if (words) {
-            stringBuilder.append(countWords(input)).append(" ");
-        }
-        if (chars) {
-            stringBuilder.append(countBytes(input)).append(" ");
-        }
-        return stringBuilder.toString();
-    }
-
-    private long countWords(List<String> linesList) {
-        int sum = 0;
-        for (String s : linesList) {
-            boolean word = false;
-            for (char c : s.toCharArray()) {
-                if (!Character.isWhitespace(c)) {
-                    if (word) {
-                        continue;
+        try {
+            if (fileNames != null && !fileNames.isEmpty()) {
+                for (String file : fileNames) {
+                    try {
+                        eval(new BufferedReader(new FileReader(currentFile = file)));
+                        print(System.out);
+                    } catch (FileNotFoundException e) {
+                        System.err.printf("File [ %s ] not found.%n", file);
+                        throw new RuntimeException(e);
                     }
-                    sum++;
-                    word = true;
-                } else {
-                    word = false;
                 }
+            } else {
+                Scanner scanner = new Scanner(System.in);
+                eval(new BufferedReader(new StringReader(scanner.nextLine())));
+                print(System.out);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void eval(BufferedReader reader) {
+        try {
+            String current;
+            while ((current = reader.readLine()) != null) {
+                lineCount++;
+                if(words) {
+                    wordCount += countWords(current);
+                }
+                if(chars) {
+                    byteCount += current.getBytes().length;
+                }
+            }
+        } catch (Exception e){
+            throw new RuntimeException(e);
+        }
+    }
+
+    private void print(OutputStream os) {
+        try {
+            StringBuilder stringBuilder = new StringBuilder();
+            if (lines) {
+                stringBuilder.append(lineCount).append(" ");
+            }
+            if (words) {
+                stringBuilder.append(wordCount).append(" ");
+            }
+            if (chars) {
+                stringBuilder.append(byteCount).append(" ");
+            }
+
+            if (isNotBlank(currentFile)) {
+                stringBuilder.append(currentFile);
+            }
+            os.write(stringBuilder.toString().getBytes());
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    private long countWords(String input) {
+        int sum = 0;
+        boolean word = false;
+        for (char c : input.toCharArray()) {
+            if (!Character.isWhitespace(c)) {
+                if (word) {
+                    continue;
+                }
+                sum++;
+                word = true;
+            } else {
+                word = false;
             }
         }
         return sum;
-    }
-
-    private long countBytes(List<String> input) {
-        return input.stream().mapToLong(String::length).sum();
     }
 
     private boolean isNotBlank(String input) {
