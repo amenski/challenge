@@ -8,6 +8,7 @@ import picocli.CommandLine.Parameters;
 import java.io.*;
 import java.util.List;
 import java.util.Scanner;
+import java.util.StringTokenizer;
 
 @Command(name = "ccwc", description = "Linux wc coding challenge")
 public class App implements Runnable {
@@ -19,7 +20,7 @@ public class App implements Runnable {
     private boolean words;
 
     @Option(names = {"-c", "--bytes"}, description = "print bytes count")
-    private boolean chars;
+    private boolean bytes;
 
     /**
      * -c, --bytes
@@ -57,24 +58,46 @@ public class App implements Runnable {
 
     @Override
     public void run() {
+        applyDefaultOptions();
         try {
             if (fileNames != null && !fileNames.isEmpty()) {
-                for (String file : fileNames) {
-                    try {
-                        eval(new BufferedReader(new FileReader(currentFile = file)));
-                        print(System.out);
-                    } catch (FileNotFoundException e) {
-                        System.err.printf("File [ %s ] not found.%n", file);
-                        throw new RuntimeException(e);
-                    }
-                }
+                readFile();
             } else {
-                Scanner scanner = new Scanner(System.in);
-                eval(new BufferedReader(new StringReader(scanner.nextLine())));
-                print(System.out);
+                readStdIn();
             }
         } catch (Exception e) {
             e.printStackTrace();
+        }
+    }
+
+    private void readStdIn() {
+        try (Scanner scanner = new Scanner(System.in);
+             BufferedReader reader = new BufferedReader(new StringReader(scanner.nextLine()))) {
+            eval(reader);
+            print(System.out);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    private void readFile() throws IOException {
+        for (String file : fileNames) {
+            try (BufferedReader reader = new BufferedReader(new FileReader(currentFile = file))) {
+                eval(reader);
+                print(System.out);
+            } catch (FileNotFoundException e) {
+                System.err.printf("File [ %s ] not found.%n", file);
+                throw new RuntimeException(e);
+            }
+        }
+    }
+
+    private void applyDefaultOptions() {
+        // default options
+        if(Boolean.FALSE.equals(lines)
+                && Boolean.FALSE.equals(words)
+                && Boolean.FALSE.equals(bytes)) {
+            lines = true; words = true; bytes = true;
         }
     }
 
@@ -86,7 +109,7 @@ public class App implements Runnable {
                 if(words) {
                     wordCount += countWords(current);
                 }
-                if(chars) {
+                if(bytes) {
                     byteCount += current.getBytes().length;
                 }
             }
@@ -104,7 +127,7 @@ public class App implements Runnable {
             if (words) {
                 stringBuilder.append(wordCount).append(" ");
             }
-            if (chars) {
+            if (bytes) {
                 stringBuilder.append(byteCount).append(" ");
             }
 
@@ -118,20 +141,7 @@ public class App implements Runnable {
     }
 
     private long countWords(String input) {
-        int sum = 0;
-        boolean word = false;
-        for (char c : input.toCharArray()) {
-            if (!Character.isWhitespace(c)) {
-                if (word) {
-                    continue;
-                }
-                sum++;
-                word = true;
-            } else {
-                word = false;
-            }
-        }
-        return sum;
+        return new StringTokenizer(input).countTokens();
     }
 
     private boolean isNotBlank(String input) {
