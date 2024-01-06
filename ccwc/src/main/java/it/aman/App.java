@@ -6,6 +6,7 @@ import picocli.CommandLine.Option;
 import picocli.CommandLine.Parameters;
 
 import java.io.*;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Scanner;
 import java.util.StringTokenizer;
@@ -13,28 +14,31 @@ import java.util.StringTokenizer;
 @Command(name = "ccwc", description = "Linux wc coding challenge")
 public class App implements Runnable {
 
-    @Option(names = {"-l", "--lines"}, description = "print newline count")
+    @Option(names = {"-l", "--lines"}, description = "printResult newline count")
     private boolean lines;
 
-    @Option(names = {"-w", "--words"}, description = "print word count")
+    @Option(names = {"-w", "--words"}, description = "printResult word count")
     private boolean words;
 
-    @Option(names = {"-c", "--bytes"}, description = "print bytes count")
+    @Option(names = {"-c", "--bytes"}, description = "printResult bytes count")
     private boolean bytes;
+
+    @Option(names = { "-h", "--help", "-?", "-help"}, usageHelp = true, description = "Display this help and exit")
+    private boolean help;
 
     /**
      * -c, --bytes
-     * print the byte counts
+     * printResult the byte counts
      * -m, --chars
-     * print the character counts
+     * printResult the character counts
      * -l, --lines
-     * print the newline counts
+     * printResult the newline counts
      * --files0-from=F
      * read input from the files specified by NUL-terminated names in file F; If F is - then read names from standard input
      * -L, --max-line-length
-     * print the length of the longest line
+     * printResult the length of the longest line
      * -w, --words
-     * print the word counts
+     * printResult the word counts
      * --help
      * display this help and exit
      * --version
@@ -44,10 +48,9 @@ public class App implements Runnable {
     @Parameters
     List<String> fileNames;
 
-    private long lineCount = 0;
-    private long wordCount = 0;
-    private long byteCount = 0;
     private String currentFile = "";
+
+    List<Result> countResult = new ArrayList<>();
 
     public App() {
     }
@@ -74,22 +77,22 @@ public class App implements Runnable {
         try (Scanner scanner = new Scanner(System.in);
              BufferedReader reader = new BufferedReader(new StringReader(scanner.nextLine()))) {
             eval(reader);
-            print(System.out);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
+        printResult(System.out);
     }
 
     private void readFile() throws IOException {
         for (String file : fileNames) {
             try (BufferedReader reader = new BufferedReader(new FileReader(currentFile = file))) {
                 eval(reader);
-                print(System.out);
             } catch (FileNotFoundException e) {
                 System.err.printf("File [ %s ] not found.%n", file);
                 throw new RuntimeException(e);
             }
         }
+        printResult(System.out);
     }
 
     private void applyDefaultOptions() {
@@ -103,6 +106,7 @@ public class App implements Runnable {
 
     private void eval(BufferedReader reader) {
         try {
+            long lineCount = 0, wordCount = 0, byteCount = 0;
             String current;
             while ((current = reader.readLine()) != null) {
                 lineCount++;
@@ -113,28 +117,33 @@ public class App implements Runnable {
                     byteCount += current.getBytes().length;
                 }
             }
+            countResult.add(new Result(lineCount, wordCount, byteCount, currentFile));
         } catch (Exception e){
             throw new RuntimeException(e);
         }
     }
 
-    private void print(OutputStream os) {
+    private void printResult(OutputStream os) {
         try {
             StringBuilder stringBuilder = new StringBuilder();
-            if (lines) {
-                stringBuilder.append(lineCount).append(" ");
-            }
-            if (words) {
-                stringBuilder.append(wordCount).append(" ");
-            }
-            if (bytes) {
-                stringBuilder.append(byteCount).append(" ");
-            }
+            for (Result r : countResult) {
+                if (lines) {
+                    stringBuilder.append(r.lineCount).append(" ");
+                }
+                if (words) {
+                    stringBuilder.append(r.wordCount).append(" ");
+                }
+                if (bytes) {
+                    stringBuilder.append(r.byteCount).append(" ");
+                }
 
-            if (isNotBlank(currentFile)) {
-                stringBuilder.append(currentFile);
+                if (isNotBlank(currentFile)) {
+                    stringBuilder.append(currentFile);
+                }
+                os.write(stringBuilder.toString().getBytes());
+                os.write('\n');
+                stringBuilder.setLength(0);
             }
-            os.write(stringBuilder.toString().getBytes());
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
@@ -150,5 +159,20 @@ public class App implements Runnable {
             if(Character.isLetterOrDigit(input.charAt(--length))) return true;
         }
         return false;
+    }
+
+
+    static class Result {
+        final long lineCount;
+        final long wordCount;
+        final long byteCount;
+        final String file;
+
+        public Result(long lineCount, long wordCount, long byteCount, String file) {
+            this.lineCount = lineCount;
+            this.wordCount = wordCount;
+            this.byteCount = byteCount;
+            this.file = file;
+        }
     }
 }
