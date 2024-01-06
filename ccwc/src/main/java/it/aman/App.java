@@ -11,14 +11,17 @@ import java.util.*;
 @Command(name = "ccwc", description = "Linux wc coding challenge")
 public class App implements Runnable {
 
-    @Option(names = {"-l", "--lines"}, description = "printResult newline count")
+    @Option(names = {"-l", "--lines"}, description = "Print newline count")
     private boolean lines;
 
-    @Option(names = {"-w", "--words"}, description = "printResult word count")
+    @Option(names = {"-w", "--words"}, description = "Print word count")
     private boolean words;
 
-    @Option(names = {"-c", "--bytes"}, description = "printResult bytes count")
+    @Option(names = {"-c", "--bytes"}, description = "Print bytes count")
     private boolean bytes;
+
+    @Option(names = {"-m", "--chars"}, description = "Print char count")
+    private boolean chars;
 
     @Option(names = {"-L", "--max-line-length"}, description = "Max line length")
     private boolean maxLineLength;
@@ -27,12 +30,8 @@ public class App implements Runnable {
     private boolean help;
 
     /**
-     * -m, --chars
-     * printResult the character counts
      * --files0-from=F
      * read input from the files specified by NUL-terminated names in file F; If F is - then read names from standard input
-     * -L, --max-line-length
-     * printResult the length of the longest line
      * src/main/resources/test.txt
      */
 
@@ -40,11 +39,7 @@ public class App implements Runnable {
     List<String> fileNames;
 
     private String currentFile = "";
-
     List<Result> results = new ArrayList<>();
-
-    public App() {
-    }
 
     public static void main(String[] args) {
         new CommandLine(new App()).execute(args);
@@ -69,6 +64,7 @@ public class App implements Runnable {
         if(Boolean.FALSE.equals(lines)
                 && Boolean.FALSE.equals(words)
                 && Boolean.FALSE.equals(bytes)
+                && Boolean.FALSE.equals(chars)
                 && Boolean.FALSE.equals(maxLineLength) ) {
             lines = true; words = true; bytes = true;
         }
@@ -98,16 +94,17 @@ public class App implements Runnable {
 
     private void count(BufferedReader reader) {
         try {
-            long lineCount = 0, wordCount = 0, byteCount = 0, maxLineLength = 0, currentLineLength = 0;
+            long lineCount = 0, wordCount = 0, byteCount = 0, maxLineLength = 0, currentLineLength = 0, chars = 0;
             String current;
             while ((current = reader.readLine()) != null) {
                 lineCount++;
                 wordCount += (currentLineLength = countWords(current));
                 byteCount += current.getBytes().length;
+                chars += current.length();
 
                 if(currentLineLength > maxLineLength) maxLineLength = currentLineLength;
             }
-            results.add(new Result(lineCount, wordCount, byteCount, maxLineLength, currentFile));
+            results.add(new Result(lineCount, wordCount, byteCount, maxLineLength, chars, currentFile));
         } catch (Exception e){
             throw new RuntimeException(e);
         }
@@ -120,6 +117,7 @@ public class App implements Runnable {
                 if (lines) stringBuilder.append(r.lineCount).append(" ");
                 if (words) stringBuilder.append(r.wordCount).append(" ");
                 if (bytes) stringBuilder.append(r.byteCount).append(" ");
+                if (chars) stringBuilder.append(r.chars).append(" ");
                 if (isNotBlank(currentFile)) stringBuilder.append(currentFile);
             }
             if (maxLineLength) stringBuilder.append("\nMax line length: ").append(getMaxLineLength());
@@ -158,13 +156,15 @@ public class App implements Runnable {
         final long wordCount;
         final long byteCount;
         final long maxLineLength;
+        final long chars;
         final String file;
 
-        public Result(long lineCount, long wordCount, long byteCount, long maxLineLength, String file) {
+        public Result(long lineCount, long wordCount, long byteCount, long maxLineLength, long chars, String file) {
             this.lineCount = lineCount;
             this.wordCount = wordCount;
             this.byteCount = byteCount;
             this.maxLineLength = maxLineLength;
+            this.chars = chars;
             this.file = file;
         }
     }
