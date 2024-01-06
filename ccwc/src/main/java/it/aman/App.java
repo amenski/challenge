@@ -6,10 +6,7 @@ import picocli.CommandLine.Option;
 import picocli.CommandLine.Parameters;
 
 import java.io.*;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Scanner;
-import java.util.StringTokenizer;
+import java.util.*;
 
 @Command(name = "ccwc", description = "Linux wc coding challenge")
 public class App implements Runnable {
@@ -23,26 +20,20 @@ public class App implements Runnable {
     @Option(names = {"-c", "--bytes"}, description = "printResult bytes count")
     private boolean bytes;
 
+    @Option(names = {"-L", "--max-line-length"}, description = "Max line length")
+    private boolean maxLineLength;
+
     @Option(names = { "-h", "--help", "-?", "-help"}, usageHelp = true, description = "Display this help and exit")
     private boolean help;
 
     /**
-     * -c, --bytes
-     * printResult the byte counts
      * -m, --chars
      * printResult the character counts
-     * -l, --lines
-     * printResult the newline counts
      * --files0-from=F
      * read input from the files specified by NUL-terminated names in file F; If F is - then read names from standard input
      * -L, --max-line-length
      * printResult the length of the longest line
-     * -w, --words
-     * printResult the word counts
-     * --help
-     * display this help and exit
-     * --version
-     * output version information and exit
+     * src/main/resources/test.txt
      */
 
     @Parameters
@@ -50,7 +41,7 @@ public class App implements Runnable {
 
     private String currentFile = "";
 
-    List<Result> countResult = new ArrayList<>();
+    List<Result> results = new ArrayList<>();
 
     public App() {
     }
@@ -73,10 +64,20 @@ public class App implements Runnable {
         }
     }
 
+    private void applyDefaultOptions() {
+        // default options
+        if(Boolean.FALSE.equals(lines)
+                && Boolean.FALSE.equals(words)
+                && Boolean.FALSE.equals(bytes)
+                && Boolean.FALSE.equals(maxLineLength) ) {
+            lines = true; words = true; bytes = true;
+        }
+    }
+
     private void readStdIn() {
         try (Scanner scanner = new Scanner(System.in);
              BufferedReader reader = new BufferedReader(new StringReader(scanner.nextLine()))) {
-            eval(reader);
+            count(reader);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
@@ -86,7 +87,7 @@ public class App implements Runnable {
     private void readFile() throws IOException {
         for (String file : fileNames) {
             try (BufferedReader reader = new BufferedReader(new FileReader(currentFile = file))) {
-                eval(reader);
+                count(reader);
             } catch (FileNotFoundException e) {
                 System.err.printf("File [ %s ] not found.%n", file);
                 throw new RuntimeException(e);
@@ -95,29 +96,18 @@ public class App implements Runnable {
         printResult(System.out);
     }
 
-    private void applyDefaultOptions() {
-        // default options
-        if(Boolean.FALSE.equals(lines)
-                && Boolean.FALSE.equals(words)
-                && Boolean.FALSE.equals(bytes)) {
-            lines = true; words = true; bytes = true;
-        }
-    }
-
-    private void eval(BufferedReader reader) {
+    private void count(BufferedReader reader) {
         try {
-            long lineCount = 0, wordCount = 0, byteCount = 0;
+            long lineCount = 0, wordCount = 0, byteCount = 0, maxLineLength = 0, currentLineLength = 0;
             String current;
             while ((current = reader.readLine()) != null) {
                 lineCount++;
-                if(words) {
-                    wordCount += countWords(current);
-                }
-                if(bytes) {
-                    byteCount += current.getBytes().length;
-                }
+                wordCount += (currentLineLength = countWords(current));
+                byteCount += current.getBytes().length;
+
+                if(currentLineLength > maxLineLength) maxLineLength = currentLineLength;
             }
-            countResult.add(new Result(lineCount, wordCount, byteCount, currentFile));
+            results.add(new Result(lineCount, wordCount, byteCount, maxLineLength, currentFile));
         } catch (Exception e){
             throw new RuntimeException(e);
         }
@@ -126,24 +116,17 @@ public class App implements Runnable {
     private void printResult(OutputStream os) {
         try {
             StringBuilder stringBuilder = new StringBuilder();
-            for (Result r : countResult) {
-                if (lines) {
-                    stringBuilder.append(r.lineCount).append(" ");
-                }
-                if (words) {
-                    stringBuilder.append(r.wordCount).append(" ");
-                }
-                if (bytes) {
-                    stringBuilder.append(r.byteCount).append(" ");
-                }
-
-                if (isNotBlank(currentFile)) {
-                    stringBuilder.append(currentFile);
-                }
-                os.write(stringBuilder.toString().getBytes());
-                os.write('\n');
-                stringBuilder.setLength(0);
+            for (Result r : results) {
+                if (lines) stringBuilder.append(r.lineCount).append(" ");
+                if (words) stringBuilder.append(r.wordCount).append(" ");
+                if (bytes) stringBuilder.append(r.byteCount).append(" ");
+                if (isNotBlank(currentFile)) stringBuilder.append(currentFile);
             }
+            if (maxLineLength) stringBuilder.append("\nMax line length: ").append(getMaxLineLength());
+
+            os.write(stringBuilder.toString().getBytes());
+            os.write('\n');
+            stringBuilder.setLength(0);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
@@ -161,17 +144,27 @@ public class App implements Runnable {
         return false;
     }
 
+    private long getMaxLineLength() {
+       if(results.isEmpty()) return 0;
+       long max = 0;
+       for (Result r : results) {
+           if (r.maxLineLength > max) max = r.maxLineLength;
+       }
+       return max;
+    }
 
     static class Result {
         final long lineCount;
         final long wordCount;
         final long byteCount;
+        final long maxLineLength;
         final String file;
 
-        public Result(long lineCount, long wordCount, long byteCount, String file) {
+        public Result(long lineCount, long wordCount, long byteCount, long maxLineLength, String file) {
             this.lineCount = lineCount;
             this.wordCount = wordCount;
             this.byteCount = byteCount;
+            this.maxLineLength = maxLineLength;
             this.file = file;
         }
     }
