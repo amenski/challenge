@@ -42,6 +42,8 @@ public class App implements Runnable {
     List<Result> results = new ArrayList<>();
 
     public static void main(String[] args) {
+        ParseArgs parseArgs = new ParseArgs(args);
+        List<CommandOption> optionList = parseArgs.parse();
         new CommandLine(new App()).execute(args);
     }
 
@@ -151,6 +153,18 @@ public class App implements Runnable {
        return max;
     }
 
+    private static void printHelp() {
+        System.out.println("Usage: java ccwc [-chlLmw] [<fileNames>...]");
+        System.out.println("Options:");
+        System.out.println("  -c, --bytes             Print bytes count");
+        System.out.println("  -l, --lines             Print newline count");
+        System.out.println("  -m, --chars             Print char count");
+        System.out.println("  -w, --words             Print word count");
+        System.out.println("  -L, --max-line-length   Max line length");
+        System.out.println("  -h, --help   Display this help and exit");
+    }
+
+
     static class Result {
         final long lineCount;
         final long wordCount;
@@ -166,6 +180,115 @@ public class App implements Runnable {
             this.maxLineLength = maxLineLength;
             this.chars = chars;
             this.file = file;
+        }
+    }
+
+    static class ParseArgs {
+
+        private LinkedList<String> args;
+        List<CommandOption> enabled = new ArrayList<>();
+
+        private static final List<String> SHORT_OPTIONS = Arrays.asList("l", "w", "c", "m", "L", "h");
+        private static final List<String> LONG_OPTIONS = Arrays.asList( "lines", "words", "bytes", "chars", "max-line-length", "help");
+
+        private ParseArgs(String[] args) {
+            if(args != null && args.length > 0) {
+                this.args = new LinkedList<>(Arrays.asList(args));
+            }
+        }
+
+        public List<CommandOption> parse() {
+            if (this.args == null) return new ArrayList<>();
+
+            for (String s : args) {
+                if (s.startsWith("--")){
+                    handleLong(s.substring(2));
+                    continue;
+                }
+                if (s.startsWith("-")){
+                    handleShort(s.substring(1));
+                }
+            }
+            return enabled;
+        }
+
+        private void handleLong(String s) {
+            if (LONG_OPTIONS.contains(s)) {
+                enabled.add(handleOption(s));
+            } else {
+                printHelp();
+            }
+        }
+
+        private void handleShort(String s) {
+            for (int i=0; i<s.length();i++) {
+                // break on help
+                if (SHORT_OPTIONS.contains(String.valueOf(s.charAt(i)))) {
+                    enabled.add(handleOption(String.valueOf(s.charAt(i))));
+                } else {
+                    printHelp();
+                }
+            }
+        }
+
+        private static CommandOption handleOption(String option) {
+            switch (option) {
+                case "lines":
+                case "l":
+                    return new CommandOption("l", "lines", "Count lines");
+                case "words":
+                case "w":
+                    return new CommandOption("w", "words", "Count words");
+                case "bytes":
+                case "c":
+                    return new CommandOption("c", "bytes", "Count bytes");
+                case "chars":
+                case "m":
+                    return new CommandOption("m", "chars", "Count chars");
+                case "max-line-length":
+                case "L":
+                    return new CommandOption("L", "max-line-length", "Max line length");
+                default:
+                    printHelp();
+            }
+            return null;
+        }
+    }
+
+
+    static class CommandOption {
+        final String shortForm;
+        final String longForm;
+        final String description;
+
+        public CommandOption(String shortForm, String longForm, String description) {
+            this.shortForm = shortForm;
+            this.longForm = longForm;
+            this.description = description;
+        }
+
+        public boolean isBytes() {
+            return this.shortForm.equals("c") || this.longForm.equalsIgnoreCase("bytes");
+        }
+
+        public boolean isChars() {
+            return this.shortForm.equals("m") || this.longForm.equalsIgnoreCase("chars");
+        }
+
+        public boolean isLines() {
+            return this.shortForm.equals("l") || this.longForm.equalsIgnoreCase("lines");
+        }
+
+        public boolean isWords() {
+            return this.shortForm.equals("w") || this.longForm.equalsIgnoreCase("words");
+        }
+
+        public boolean isMaxLineLength() {
+            return this.shortForm.equals("L") || this.longForm.equalsIgnoreCase("max-line-length");
+        }
+
+        public boolean isHelp() {
+            return this.shortForm.equals("h") || this.longForm.equalsIgnoreCase("help");
         }
     }
 }
