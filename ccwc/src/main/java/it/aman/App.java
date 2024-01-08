@@ -1,33 +1,17 @@
 package it.aman;
 
-import picocli.CommandLine;
-import picocli.CommandLine.Command;
-import picocli.CommandLine.Option;
-import picocli.CommandLine.Parameters;
-
 import java.io.*;
 import java.util.*;
+import java.util.function.Consumer;
 
-@Command(name = "ccwc", description = "Linux wc coding challenge")
-public class App implements Runnable {
+public class App {
 
-    @Option(names = {"-l", "--lines"}, description = "Print newline count")
     private boolean lines;
-
-    @Option(names = {"-w", "--words"}, description = "Print word count")
     private boolean words;
-
-    @Option(names = {"-c", "--bytes"}, description = "Print bytes count")
     private boolean bytes;
-
-    @Option(names = {"-m", "--chars"}, description = "Print char count")
-    private boolean chars;
-
-    @Option(names = {"-L", "--max-line-length"}, description = "Max line length")
-    private boolean maxLineLength;
-
-    @Option(names = { "-h", "--help", "-?", "-help"}, usageHelp = true, description = "Display this help and exit")
-    private boolean help;
+    private final boolean chars;
+    private final boolean maxLineLength;
+    private final boolean help;
 
     /**
      * --files0-from=F
@@ -35,7 +19,6 @@ public class App implements Runnable {
      * src/main/resources/test.txt
      */
 
-    @Parameters
     List<String> fileNames;
 
     private String currentFile = "";
@@ -43,11 +26,25 @@ public class App implements Runnable {
 
     public static void main(String[] args) {
         ParseArgs parseArgs = new ParseArgs(args);
-        List<CommandOption> optionList = parseArgs.parse();
-        new CommandLine(new App()).execute(args);
+        new App(parseArgs.parse()).run();
     }
 
-    @Override
+
+    public App(Map<String, Object> options) {
+        this.lines = options.get("lines") != null;
+        this.words = options.get("words") != null;
+        this.bytes = options.get("bytes") != null;
+        this.chars = options.get("chars") != null;
+        this.maxLineLength = options.get("max-line-length") != null;
+        this.help = options.get("help") != null;
+        this.fileNames = options.get("files") != null ? (List<String>) options.get("files") : new ArrayList<>() ;
+
+        if(this.help) {
+            printHelp();
+            System.exit(0);
+        }
+    }
+
     public void run() {
         applyDefaultOptions();
         try {
@@ -136,12 +133,23 @@ public class App implements Runnable {
         return new StringTokenizer(input).countTokens();
     }
 
-    private boolean isNotBlank(String input) {
-        int length = input.length();
-        while(length > 0) {
-            if(Character.isLetterOrDigit(input.charAt(--length))) return true;
+    public static boolean isBlank(final CharSequence cs) {
+        final int strLen = length(cs);
+        if (strLen == 0) return true;
+        for (int i = 0; i < strLen; i++) {
+            if (!Character.isWhitespace(cs.charAt(i))) {
+                return false;
+            }
         }
-        return false;
+        return true;
+    }
+
+    private static int length(final CharSequence cs) {
+        return cs == null ? 0 : cs.length();
+    }
+
+    private static boolean isNotBlank(String cs) {
+        return !isBlank(cs);
     }
 
     private long getMaxLineLength() {
@@ -186,7 +194,7 @@ public class App implements Runnable {
     static class ParseArgs {
 
         private LinkedList<String> args;
-        List<CommandOption> enabled = new ArrayList<>();
+        Map<String, Object> commandsAndFile = new HashMap<>();
 
         private static final List<String> SHORT_OPTIONS = Arrays.asList("l", "w", "c", "m", "L", "h");
         private static final List<String> LONG_OPTIONS = Arrays.asList( "lines", "words", "bytes", "chars", "max-line-length", "help");
@@ -197,8 +205,8 @@ public class App implements Runnable {
             }
         }
 
-        public List<CommandOption> parse() {
-            if (this.args == null) return new ArrayList<>();
+        public Map<String, Object> parse() {
+            if (this.args == null) return new HashMap<>();
 
             for (String s : args) {
                 if (s.startsWith("--")){
@@ -207,14 +215,30 @@ public class App implements Runnable {
                 }
                 if (s.startsWith("-")){
                     handleShort(s.substring(1));
+                    continue;
                 }
+                
+                //file names
+                handleFiles(s);
             }
-            return enabled;
+            return commandsAndFile;
+        }
+
+        private void handleFiles(String fileName) {
+            if (isBlank(fileName)) return;
+            Object files = commandsAndFile.get("files");
+            if(files == null) {
+                List<String> f = new ArrayList<>();
+                f.add(fileName);
+                commandsAndFile.put("files", new ArrayList<>(f));
+                return;
+            }
+            ((List<String>) files).add(fileName);
         }
 
         private void handleLong(String s) {
             if (LONG_OPTIONS.contains(s)) {
-                enabled.add(handleOption(s));
+                setIfNotNull(handleOption(s), t -> commandsAndFile.put(t.longForm, t));
             } else {
                 printHelp();
             }
@@ -222,13 +246,18 @@ public class App implements Runnable {
 
         private void handleShort(String s) {
             for (int i=0; i<s.length();i++) {
-                // break on help
+                // break on help?
                 if (SHORT_OPTIONS.contains(String.valueOf(s.charAt(i)))) {
-                    enabled.add(handleOption(String.valueOf(s.charAt(i))));
+                    setIfNotNull(handleOption(String.valueOf(s.charAt(i))), t -> commandsAndFile.put(t.longForm, t));
                 } else {
                     printHelp();
                 }
             }
+        }
+
+        private <T> void setIfNotNull(T value, Consumer<T> consumer) {
+            if(value == null) return;
+            consumer.accept(value);
         }
 
         private static CommandOption handleOption(String option) {
