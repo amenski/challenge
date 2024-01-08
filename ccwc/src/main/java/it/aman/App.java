@@ -1,7 +1,19 @@
 package it.aman;
 
-import java.io.*;
-import java.util.*;
+import java.io.BufferedReader;
+import java.io.FileNotFoundException;
+import java.io.FileReader;
+import java.io.IOException;
+import java.io.OutputStream;
+import java.io.StringReader;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
+import java.util.Scanner;
+import java.util.StringTokenizer;
 import java.util.function.Consumer;
 
 public class App {
@@ -11,7 +23,6 @@ public class App {
     private boolean bytes;
     private final boolean chars;
     private final boolean maxLineLength;
-    private final boolean help;
 
     /**
      * --files0-from=F
@@ -31,18 +42,18 @@ public class App {
 
 
     public App(Map<String, Object> options) {
+        if(options.get("help") != null) {
+            printHelp();
+            System.exit(0);
+        }
+
         this.lines = options.get("lines") != null;
         this.words = options.get("words") != null;
         this.bytes = options.get("bytes") != null;
         this.chars = options.get("chars") != null;
         this.maxLineLength = options.get("max-line-length") != null;
-        this.help = options.get("help") != null;
         this.fileNames = options.get("files") != null ? (List<String>) options.get("files") : new ArrayList<>() ;
 
-        if(this.help) {
-            printHelp();
-            System.exit(0);
-        }
     }
 
     public void run() {
@@ -51,7 +62,7 @@ public class App {
             if (fileNames != null && !fileNames.isEmpty()) {
                 readFile();
             } else {
-                readStdIn();
+                readStdIn(); // TODO process this
             }
         } catch (Exception e) {
             e.printStackTrace();
@@ -224,6 +235,7 @@ public class App {
             return commandsAndFile;
         }
 
+        @SuppressWarnings("unchecked")
         private void handleFiles(String fileName) {
             if (isBlank(fileName)) return;
             Object files = commandsAndFile.get("files");
@@ -240,17 +252,16 @@ public class App {
             if (LONG_OPTIONS.contains(s)) {
                 setIfNotNull(handleOption(s), t -> commandsAndFile.put(t.longForm, t));
             } else {
-                printHelp();
+                commandsAndFile.put("help", new CommandOption("h", "help", "Print help."));
             }
         }
 
         private void handleShort(String s) {
             for (int i=0; i<s.length();i++) {
-                // break on help?
                 if (SHORT_OPTIONS.contains(String.valueOf(s.charAt(i)))) {
                     setIfNotNull(handleOption(String.valueOf(s.charAt(i))), t -> commandsAndFile.put(t.longForm, t));
                 } else {
-                    printHelp();
+                    commandsAndFile.put("help", new CommandOption("h", "help", "Print help."));
                 }
             }
         }
@@ -278,9 +289,8 @@ public class App {
                 case "L":
                     return new CommandOption("L", "max-line-length", "Max line length");
                 default:
-                    printHelp();
+                    return new CommandOption("h", "help", "Print help.");
             }
-            return null;
         }
     }
 
