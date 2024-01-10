@@ -24,13 +24,14 @@ public class App {
     private final boolean chars;
     private final boolean maxLineLength;
 
+    List<String> fileNames;
+
     /**
      * --files0-from=F
      * read input from the files specified by NUL-terminated names in file F; If F is - then read names from standard input
      * src/main/resources/test.txt
      */
 
-    List<String> fileNames;
 
     private String currentFile = "";
     List<Result> results = new ArrayList<>();
@@ -129,12 +130,13 @@ public class App {
                 if (bytes) stringBuilder.append(r.byteCount).append(" ");
                 if (chars) stringBuilder.append(r.chars).append(" ");
                 if (isNotBlank(currentFile)) stringBuilder.append(currentFile);
-            }
-            if (maxLineLength) stringBuilder.append("\nMax line length: ").append(getMaxLineLength());
 
-            os.write(stringBuilder.toString().getBytes());
-            os.write('\n');
-            stringBuilder.setLength(0);
+                os.write(stringBuilder.toString().getBytes());
+                os.write('\n');
+                stringBuilder.setLength(0);
+            }
+            if (maxLineLength) os.write(("\nMax line length: " + getMaxLineLength()).getBytes());
+
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
@@ -304,30 +306,6 @@ public class App {
             this.shortForm = shortForm;
             this.longForm = longForm;
             this.description = description;
-        }
-
-        public boolean isBytes() {
-            return this.shortForm.equals("c") || this.longForm.equalsIgnoreCase("bytes");
-        }
-
-        public boolean isChars() {
-            return this.shortForm.equals("m") || this.longForm.equalsIgnoreCase("chars");
-        }
-
-        public boolean isLines() {
-            return this.shortForm.equals("l") || this.longForm.equalsIgnoreCase("lines");
-        }
-
-        public boolean isWords() {
-            return this.shortForm.equals("w") || this.longForm.equalsIgnoreCase("words");
-        }
-
-        public boolean isMaxLineLength() {
-            return this.shortForm.equals("L") || this.longForm.equalsIgnoreCase("max-line-length");
-        }
-
-        public boolean isHelp() {
-            return this.shortForm.equals("h") || this.longForm.equalsIgnoreCase("help");
         }
     }
 }
