@@ -207,12 +207,12 @@ public class App {
     static class ParseArgs {
 
         private LinkedList<String> args;
-        Map<String, Object> commandsAndFile = new HashMap<>();
+        private final Map<String, Object> commandsAndFile = new HashMap<>();
 
         private static final List<String> SHORT_OPTIONS = Arrays.asList("l", "w", "c", "m", "L", "h");
         private static final List<String> LONG_OPTIONS = Arrays.asList( "lines", "words", "bytes", "chars", "max-line-length", "help");
 
-        private ParseArgs(String[] args) {
+        ParseArgs(String[] args) {
             if(args != null && args.length > 0) {
                 this.args = new LinkedList<>(Arrays.asList(args));
             }
